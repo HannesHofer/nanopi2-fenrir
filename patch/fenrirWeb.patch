@@ -24,10 +24,10 @@ index 0000000000..fac9ac77fd
 --- /dev/null
 +++ b/package/fenrirWeb/fenrirWeb.mk
 @@ -0,0 +1,8 @@
-+FENRIRWEB_VERSION = 0.5.0
++FENRIRWEB_VERSION = 0.6.0
 +FENRIRWEB_SETUP_TYPE = setuptools
 +FENRIRWEB_SOURCE = fenrirWeb-$(FENRIRWEB_VERSION).tar.gz
-+FENRIRWEB_SITE = https://files.pythonhosted.org/packages/b4/66/a97d4fbf237918a80324a6e9ad2957a22e16b442fc926a13ffa50936e574
++FENRIRWEB_SITE = https://files.pythonhosted.org/packages/ab/d6/4c45867dac1e256fdd113383041343674da66503a0d1c3132ca209388c8d
 +FENRIRWEB_LICENSE = GPL-2
 +FENRIRWEB_LICENSE_FILES = LICENSE
 +
