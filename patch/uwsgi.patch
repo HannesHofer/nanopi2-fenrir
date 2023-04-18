@@ -1,0 +1,514 @@
+diff --git a/package/uwsgi/0001-add-plugin_base_dir-variable.patch b/package/uwsgi/0001-add-plugin_base_dir-variable.patch
+new file mode 100644
+index 0000000000..5ee6c48a07
+--- /dev/null
++++ b/package/uwsgi/0001-add-plugin_base_dir-variable.patch
+@@ -0,0 +1,38 @@
++From 2b15d1c4d48a431a92d76486818a84d9653e549b Mon Sep 17 00:00:00 2001
++From: Adam Duskett <Adamduskett@outlook.com>
++Date: Mon, 29 Jan 2018 11:40:52 -0500
++Subject: [PATCH] add plugin_base_dir variable
++
++Currently, when cross-compiling, if the plugin_dir points to the target
++directory, uwsgi will embed the full path during compiling.
++This whole path results in uwsgi trying to load a full target path instead of
++/usr/lib/uwsgi when running on the target.
++
++Creating a new PLUGIN_BASE_DIR variable and prefixing plugin_dir allows the
++plugin to be installed to the appropriate directory but still have uwsgi load
++the plugins from the correct folder when ran from on the cross-compiled target.
++
++Current status: Pending
++https://github.com/unbit/uwsgi/pull/2052
++
++Signed-off-by: Adam Duskett <Adamduskett@outlook.com>
++--- a/uwsgiconfig.py      2022-03-20 18:51:25.715741644 +0100
+++++ b/uwsgiconfig.py      2022-03-20 18:52:47.039783450 +0100
++@@ -35,6 +35,7 @@
++ except ImportError:
++     from pipes import quote
++ 
+++PLUGIN_BASE_DIR = os.environ.get('PLUGIN_BASE_DIR', '')
++ PY3 = sys.version_info[0] == 3
++ 
++ if uwsgi_os == 'Darwin':
++@@ -1443,7 +1444,7 @@
++         pass
++ 
++     if uc:
++-        plugin_dest = uc.get('plugin_build_dir', uc.get('plugin_dir')) + '/' + name + '_plugin'
+++        plugin_dest = PLUGIN_BASE_DIR + uc.get('plugin_build_dir', uc.get('plugin_dir')) + '/' + name + '_plugin'
++     else:
++         plugin_dest = name + '_plugin'
++
++
+diff --git a/package/uwsgi/0002-add-a-xml2_config-environment-variable-for-cross-co.patch b/package/uwsgi/0002-add-a-xml2_config-environment-variable-for-cross-co.patch
+new file mode 100644
+index 0000000000..014494e5cb
+--- /dev/null
++++ b/package/uwsgi/0002-add-a-xml2_config-environment-variable-for-cross-co.patch
+@@ -0,0 +1,60 @@
++From b98241acc633396dc7f4ab9e4153af552ac6d4a0 Mon Sep 17 00:00:00 2001
++From: Adam Duskett <Aduskett@gmail.com>
++Date: Sat, 3 Aug 2019 14:59:18 -0400
++Subject: [PATCH] add a XML2_CONFIG environment variable for cross-compiling
++
++Currently, xml2-config is called out with no way to define an xml2-config path,
++which causes uwsgi to use the host xml2-config which will cause the xml2
++library and CFlag directories to point to the host instead of
++the cross-environment.
++
++Add a check for the XML2_CONFIG environment variable, and if it exists, use the
++resulting path instead.
++
++Current-status: pending
++https://github.com/unbit/uwsgi/pull/2050
++
++Signed-off-by: Adam Duskett <aduskett@gmail.com>
++---
++ uwsgiconfig.py | 9 +++++----
++ 1 file changed, 5 insertions(+), 4 deletions(-)
++
++diff --git a/uwsgiconfig.py b/uwsgiconfig.py
++index 22c9dd3..26403f1 100644
++--- a/uwsgiconfig.py
+++++ b/uwsgiconfig.py
++@@ -1303,12 +1303,13 @@ class uConf(object):
++                 self.gcc_list.append('core/legion')
++                 report['ssl'] = True
++ 
+++        xml2config = os.environ.get('XML2_CONFIG','xml2-config')
++         if self.get('xml'):
++             if self.get('xml') == 'auto':
++-                xmlconf = spcall('xml2-config --libs')
+++                xmlconf = spcall(xml2config + ' --libs')
++                 if xmlconf and uwsgi_os != 'Darwin':
++                     self.libs.append(xmlconf)
++-                    xmlconf = spcall("xml2-config --cflags")
+++                    xmlconf = spcall(xml2config + " --cflags")
++                     self.cflags.append(xmlconf)
++                     self.cflags.append("-DUWSGI_XML -DUWSGI_XML_LIBXML2")
++                     self.gcc_list.append('core/xmlconf')
++@@ -1319,13 +1320,13 @@ class uConf(object):
++                     self.gcc_list.append('core/xmlconf')
++                     report['xml'] = 'expat'
++             elif self.get('xml') == 'libxml2':
++-                xmlconf = spcall('xml2-config --libs')
+++                xmlconf = spcall(xml2config + ' --libs')
++                 if xmlconf is None:
++                     print("*** libxml2 headers unavailable. uWSGI build is interrupted. You have to install libxml2 development package or use libexpat or disable XML")
++                     sys.exit(1)
++                 else:
++                     self.libs.append(xmlconf)
++-                    xmlconf = spcall("xml2-config --cflags")
+++                    xmlconf = spcall(xml2config + " --cflags")
++                     if xmlconf is None:
++                         print("*** libxml2 headers unavailable. uWSGI build is interrupted. You have to install libxml2 development package or use libexpat or disable XML")
++                         sys.exit(1)
++-- 
++2.21.0
++
+diff --git a/package/uwsgi/0003-add-a-pcre_config-environment-variable-for-cross-co.patch b/package/uwsgi/0003-add-a-pcre_config-environment-variable-for-cross-co.patch
+new file mode 100644
+index 0000000000..88fca366b4
+--- /dev/null
++++ b/package/uwsgi/0003-add-a-pcre_config-environment-variable-for-cross-co.patch
+@@ -0,0 +1,58 @@
++From 170cbd7226c1a0774da3c19733c2f473befc8eed Mon Sep 17 00:00:00 2001
++From: Adam Duskett <Aduskett@gmail.com>
++Date: Sat, 3 Aug 2019 15:32:41 -0400
++Subject: [PATCH] Add a PCRE_CONFIG environment variable for cross-compiling
++
++Currently, pcre-config is called out with no way to define a pcre-config path,
++which causes uwsgi to use the host pcre-config, which will cause the pcre
++library and cflag directories to point to the host.
++
++Add a check for the PCRE_CONFIG environment variable, and if it exists,
++use the resulting path instead.
++
++upstream-status: pending
++https://github.com/unbit/uwsgi/pull/2051
++
++Signed-off-by: Adam Duskett <Aduskett@gmail.com>
++---
++ uwsgiconfig.py | 9 +++++----
++ 1 file changed, 5 insertions(+), 4 deletions(-)
++
++diff --git a/uwsgiconfig.py b/uwsgiconfig.py
++index 26403f1..b800cdb 100644
++--- a/uwsgiconfig.py
+++++ b/uwsgiconfig.py
++@@ -1072,25 +1072,26 @@ class uConf(object):
++         has_pcre = False
++ 
++         # re-enable after pcre fix
+++        pcreconfig = os.environ.get('PCRE_CONFIG','pcre-config')
++         if self.get('pcre'):
++             if self.get('pcre') == 'auto':
++-                pcreconf = spcall('pcre-config --libs')
+++                pcreconf = spcall(pcreconfig + ' --libs')
++                 if pcreconf:
++                     self.libs.append(pcreconf)
++-                    pcreconf = spcall("pcre-config --cflags")
+++                    pcreconf = spcall(pcreconfig + ' --cflags')
++                     self.cflags.append(pcreconf)
++                     self.gcc_list.append('core/regexp')
++                     self.cflags.append("-DUWSGI_PCRE")
++                     has_pcre = True
++ 
++             else:
++-                pcreconf = spcall('pcre-config --libs')
+++                pcreconf = spcall(pcreconfig + ' --libs')
++                 if pcreconf is None:
++                     print("*** libpcre headers unavailable. uWSGI build is interrupted. You have to install pcre development package or disable pcre")
++                     sys.exit(1)
++                 else:
++                     self.libs.append(pcreconf)
++-                    pcreconf = spcall("pcre-config --cflags")
+++                    pcreconf = spcall(pcreconfig + ' --cflags')
++                     self.cflags.append(pcreconf)
++                     self.gcc_list.append('core/regexp')
++                     self.cflags.append("-DUWSGI_PCRE")
++-- 
++2.21.0
++
+diff --git a/package/uwsgi/0004-adjust-python-library-header-paths-for-cross-compila.patch b/package/uwsgi/0004-adjust-python-library-header-paths-for-cross-compila.patch
+new file mode 100644
+index 0000000000..9eb39b1212
+--- /dev/null
++++ b/package/uwsgi/0004-adjust-python-library-header-paths-for-cross-compila.patch
+@@ -0,0 +1,34 @@
++From 8bf43f727d34619773d826357f49e172876f8a30 Mon Sep 17 00:00:00 2001
++From: Adam Duskett <Aduskett@gmail.com>
++Date: Sat, 3 Aug 2019 17:12:09 -0400
++Subject: [PATCH] Adjust python library/header paths for cross-compilation
++
++uWSGI calls sysconfig.get_config_var('LIBDIR') which return the host header and
++library paths.
++
++To fix this, prefix the LIBDIR path with _python_sysroot taken
++from the sysconfigdata module.
++
++upstream status: Not submitted, Buildroot specific.
++
++Signed-off-by: Adam Duskett <Aduskett@gmail.com>
++---
++ plugins/python/uwsgiplugin.py | 2 ++
++ 1 file changed, 2 insertions(+)
++
++diff --git a/plugins/python/uwsgiplugin.py b/plugins/python/uwsgiplugin.py
++index 843876f..a74de7d 100644
++--- a/plugins/python/uwsgiplugin.py
+++++ b/plugins/python/uwsgiplugin.py
++@@ -52,6 +52,8 @@ if not 'UWSGI_PYTHON_NOLIB' in os.environ:
++     else:
++         try:
++             libdir = sysconfig.get_config_var('LIBDIR')
+++            if "_python_sysroot" in os.environ:
+++                libdir = os.environ.get("_python_sysroot") + libdir
++         except:
++             libdir = "%s/lib" % sysconfig.PREFIX
++ 
++-- 
++2.21.0
++
+diff --git a/package/uwsgi/0005-fix-building-with-uClibc.patch b/package/uwsgi/0005-fix-building-with-uClibc.patch
+new file mode 100644
+index 0000000000..1f546fa412
+--- /dev/null
++++ b/package/uwsgi/0005-fix-building-with-uClibc.patch
+@@ -0,0 +1,61 @@
++From 98c616be6bb745cc5178de3b1a3a84d1f86d6e34 Mon Sep 17 00:00:00 2001
++From: Adam Duskett <Aduskett@gmail.com>
++Date: Wed, 7 Aug 2019 15:10:46 -0400
++Subject: [PATCH] fix building with uClibc
++
++There are two issues building uwsgi with uClibc:
++1) core/uwsgi.c includes <execinfo.h> when __GLIBC__  is defined, but does not
++check if __UCLIBC__ is also defined.
++
++2) plugins/router_basicauth/router_basicauth.c checks if __GLIBC__ is defined
++for <crypt.h> and to enable a workaround for a bug in glibc-2.2.5, both of which
++do not apply to uClibc.
++Add a check for __UCLIBC__ for both of these conditions.
++
++Upstream status: Merged.
++https://github.com/unbit/uwsgi/pull/2054
++
++Signed-off-by: Adam Duskett <Aduskett@gmail.com>
++---
++ core/uwsgi.c                                | 2 +-
++ plugins/router_basicauth/router_basicauth.c | 4 ++--
++ 2 files changed, 3 insertions(+), 3 deletions(-)
++
++diff --git a/core/uwsgi.c b/core/uwsgi.c
++index ef9e310..523bf45 100644
++--- a/core/uwsgi.c
+++++ b/core/uwsgi.c
++@@ -1820,7 +1820,7 @@ void uwsgi_plugins_atexit(void) {
++ 
++ void uwsgi_backtrace(int depth) {
++ 
++-#if defined(__GLIBC__) || (defined(__APPLE__) && !defined(NO_EXECINFO)) || defined(UWSGI_HAS_EXECINFO)
+++#if (!defined(__UCLIBC__) && defined __GLIBC__) || (defined(__APPLE__) && !defined(NO_EXECINFO)) || defined(UWSGI_HAS_EXECINFO)
++ 
++ #include <execinfo.h>
++ 
++diff --git a/plugins/router_basicauth/router_basicauth.c b/plugins/router_basicauth/router_basicauth.c
++index 429bade..0b7161e 100644
++--- a/plugins/router_basicauth/router_basicauth.c
+++++ b/plugins/router_basicauth/router_basicauth.c
++@@ -3,7 +3,7 @@
++ #ifdef UWSGI_ROUTING
++ 
++ // TODO: Add more crypt_r supported platfroms here
++-#if defined(__linux__) && defined(__GLIBC__)
+++#if defined(__linux__) && defined(__GLIBC__) && !defined(__UCLIBC__)
++ #include <crypt.h>
++ #elif defined(__CYGWIN__)
++ #include <crypt.h>
++@@ -67,7 +67,7 @@ static uint16_t htpasswd_check(char *filename, char *auth) {
++ 
++ 		if (clen > 13) cpwd[13] = 0;
++ 
++-#if defined(__linux__) && defined(__GLIBC__)
+++#if defined(__linux__) && defined(__GLIBC__) && !defined(__UCLIBC__)
++ 		struct crypt_data cd;
++ 		memset(&cd, 0, sizeof(struct crypt_data));
++     /* work around glibc-2.2.5 bug,
++-- 
++2.21.0
++
+diff --git a/package/uwsgi/Config.in b/package/uwsgi/Config.in
+new file mode 100644
+index 0000000000..a1341f289e
+--- /dev/null
++++ b/package/uwsgi/Config.in
+@@ -0,0 +1,94 @@
++menuconfig BR2_PACKAGE_UWSGI
++	bool "uwsgi"
++	depends on !BR2_STATIC_LIBS # dlfcn.h
++	# While it's possible to build uwsgi without PCRE, it would require not to
++	# build Python or PHP or several of the embedded plugins.
++	# The official documentation also recommends building PCRE support.
++	# https://uwsgi-docs.readthedocs.io/en/latest/SNI.html?highlight=sni-regexp
++	select BR2_PACKAGE_PCRE
++	help
++	  The uWSGI server.
++	  The uWSGI project aims at developing a full stack for
++	  building hosting services. Application servers
++	  (for various programming languages and protocols), proxies,
++	  process managers and monitors are all implemented using a
++	  common API and a standard configuration style. Thanks to
++	  its pluggable architecture, it can be extended to support
++	  more platforms and languages.
++
++	  https://uwsgi-docs.readthedocs.io/en/latest/
++
++if BR2_PACKAGE_UWSGI
++
++choice
++	prompt "Main application type"
++	default BR2_PACKAGE_UWSGI_APPLICATION_PHP
++	help
++	  Select the application type
++
++config BR2_PACKAGE_UWSGI_APPLICATION_PHP
++	bool "PHP"
++	depends on !BR2_BINFMT_FLAT # PHP
++	select BR2_PACKAGE_PHP # runtime
++	select BR2_PACKAGE_PHP_BUILD_SHARED_LIBRARY # linking
++	help
++	  Select this if your primary application is PHP based.
++
++config BR2_PACKAGE_UWSGI_APPLICATION_PYTHON
++	bool "Python"
++	depends on BR2_USE_MMU # python
++	depends on BR2_USE_WCHAR # python
++	depends on BR2_TOOLCHAIN_HAS_THREADS # python
++	select BR2_PACKAGE_PYTHON3 if !BR2_PACKAGE_PYTHON
++	help
++	  Select this if your primary application is Python based.
++
++comment "uwsgi-python needs a toolchain w/ wchar, threads"
++	depends on BR2_USE_MMU
++	depends on !BR2_USE_WCHAR || !BR2_TOOLCHAIN_HAS_THREADS
++
++endchoice
++
++comment "plugins with external dependencies"
++
++config BR2_PACKAGE_UWSGI_PLUGINS_CAPABILITIES
++	bool "POSIX capability support"
++	select BR2_PACKAGE_LIBCAP
++	help
++	  POSIX capabilities allow fine-grained permissions for
++	  processes. In addition to the standard UNIX permission scheme,
++	  they define a new set of privileges for system resources.
++
++config BR2_PACKAGE_UWSGI_PLUGINS_JSON
++	bool "JSON"
++	select BR2_PACKAGE_JANSSON if !BR2_PACKAGE_YAJL
++	help
++	  Load the config from a json file.
++
++config BR2_PACKAGE_UWSGI_PLUGINS_SSL
++	bool "SSL"
++	select BR2_PACKAGE_OPENSSL
++	help
++	  SSL Support
++
++config BR2_PACKAGE_UWSGI_PLUGINS_XML
++	bool "XML"
++	select BR2_PACKAGE_LIBXML2 if !BR2_PACKAGE_EXPAT
++	help
++	  Load the config from a XML file.
++
++config BR2_PACKAGE_UWSGI_PLUGINS_YAML
++	bool "YAML"
++	select BR2_PACKAGE_LIBYAML
++	help
++	  Load the config from a YAML file.
++
++endif
++
++config BR2_PACKAGE_UWSGI_MAIN_APPLICATION
++	string
++	default "php"  if BR2_PACKAGE_UWSGI_APPLICATION_PHP
++	default "python"  if BR2_PACKAGE_UWSGI_APPLICATION_PYTHON
++
++comment "uwsgi needs a toolchain w/ dynamic library"
++	depends on BR2_STATIC_LIBS
+diff --git a/package/uwsgi/buildroot.ini.in b/package/uwsgi/buildroot.ini.in
+new file mode 100644
+index 0000000000..e9074a3644
+--- /dev/null
++++ b/package/uwsgi/buildroot.ini.in
+@@ -0,0 +1,9 @@
++[uwsgi]
++inherit = base
++json = false
++pcre = true
++ssl = false
++xml = false
++yaml = false
++main_plugin = #MAIN_PLUGIN#
++plugin_dir = /usr/lib/uwsgi
+diff --git a/package/uwsgi/uwsgi.mk b/package/uwsgi/uwsgi.mk
+new file mode 100644
+index 0000000000..ae8996286f
+--- /dev/null
++++ b/package/uwsgi/uwsgi.mk
+@@ -0,0 +1,112 @@
++################################################################################
++#
++# uwsgi
++#
++################################################################################
++
++UWSGI_VERSION = 2.0.20
++UWSGI_SITE = $(call github,unbit,uwsgi,$(UWSGI_VERSION))
++UWSGI_LICENSE = GPL-2.0+
++UWSGI_LICENSE_FILES = LICENSE
++UWSGI_DEPENDENCIES += pcre
++
++#UWSGI_INCLUDES="$(STAGING_DIR)/usr/include" 
++UWSGI_ENV += \
++	CC="$(TARGET_CC) -I $(STAGING_DIR)/usr/include/python3.10 -L $(STAGING_DIR)/usr/lib" \
++	UWSGI_REMOVE_INCLUDES="/usr/include,/usr/local/include,/home/hannes/Work/buildroot/output/host/include/python3.10" \
++	UWSGI_INCLUDES="$(TARGET_DIR)/usr/include,$(TARGET_DIR)/usr/include/python3.10" \
++	UWSGI_LIB="$(STAGING_DIR)/usr/lib" \
++	PLUGIN_BASE_DIR="$(TARGET_DIR)" \
++	PCRE_CONFIG="$(STAGING_DIR)/usr/bin/pcre-config" \
++	UWSGI_PROFILE=$(@D)/buildroot.ini
++
++ifeq ($(BR2_PACKAGE_LIBZLIB),y)
++UWSGI_DEPENDENCIES += libzlib
++endif
++
++ifeq ($(BR2_PACKAGE_UTIL_LINUX_LIBUUID),y)
++UWSGI_DEPENDENCIES += util-linux
++endif
++
++ifeq ($(BR2_PACKAGE_UWSGI_APPLICATION_PHP),y)
++UWSGI_DEPENDENCIES += php
++UWSGI_ENV += \
++	UWSGICONFIG_PHPDIR="$(STAGING_DIR)/usr" \
++	UWSGICONFIG_PHPLIBDIR="$(STAGING_DIR)/usr/lib"
++endif
++
++ifeq ($(BR2_PACKAGE_UWSGI_APPLICATION_PYTHON),y)
++UWSGI_ENV += PYTHON_LIBDIR="$(STAGING_DIR)/usr/lib"
++ifeq ($(BR2_PACKAGE_PYTHON),y)
++UWSGI_DEPENDENCIES += host-python host-python-setuptools python
++else
++UWSGI_DEPENDENCIES += host-python3 host-python-setuptools python3
++endif
++endif
++
++# Plugins
++ifeq ($(BR2_PACKAGE_UWSGI_PLUGINS_CAPABILITIES),y)
++UWSGI_DEPENDENCIES += libcap
++endif
++
++# The uwsgi config.ini file does not use the same values for every option.
++# Use a key/value with a colon as a delimiter to set the appropriate setting.
++ifeq ($(BR2_PACKAGE_UWSGI_PLUGINS_JSON),y)
++ifeq ($(BR2_PACKAGE_JANSSON),y)
++UWSGI_DEPENDENCIES += jansson
++UWSGI_INI_OPTS += "json:jansson"
++else
++UWSGI_DEPENDENCIES += yajl
++UWSGI_INI_OPTS += "json:yajl"
++endif
++endif
++
++ifeq ($(BR2_PACKAGE_UWSGI_PLUGINS_SSL),y)
++UWSGI_DEPENDENCIES += openssl
++UWSGI_INI_OPTS += "ssl:true"
++endif
++
++ifeq ($(BR2_PACKAGE_UWSGI_PLUGINS_XML),y)
++ifeq ($(BR2_PACKAGE_LIBXML2),y)
++UWSGI_DEPENDENCIES += libxml2
++UWSGI_INI_OPTS += "xml:libxml2"
++UWSGI_ENV += XML2_CONFIG="$(STAGING_DIR)/usr/bin/xml2-config"
++else
++UWSGI_DEPENDENCIES += expat
++UWSGI_INI_OPTS += "xml:expat"
++endif
++endif
++
++ifeq ($(BR2_PACKAGE_UWSGI_PLUGINS_YAML),y)
++UWSGI_DEPENDENCIES += libyaml
++UWSGI_INI_OPTS += "yaml:libyaml"
++endif
++
++define UWSGI_SETUP_PROFILE
++	mkdir -p $(TARGET_DIR)/usr/lib/uwsgi
++
++	$(INSTALL) -D -m 755 $(UWSGI_PKGDIR)/buildroot.ini.in \
++		$(@D)/buildroot.ini
++
++	$(foreach f,$(UWSGI_INI_OPTS), \
++		$(eval option=$(shell echo $f | cut -d: -f 1)) \
++		$(eval value=$(shell echo $f | cut -d: -f 2)) \
++		$(SED) "s%$(option).*%$(option) = $(value)%g" $(@D)/buildroot.ini
++	)
++	$(SED) "s%#MAIN_PLUGIN#%$(BR2_PACKAGE_UWSGI_MAIN_APPLICATION)%g" $(@D)/buildroot.ini
++endef
++UWSGI_POST_PATCH_HOOKS = UWSGI_SETUP_PROFILE
++
++define UWSGI_BUILD_CMDS
++	cd $(@D); echo "TAGETENV: $(TARGET_MAKE_ENV)"; \
++	$(TARGET_MAKE_ENV) $(UWSGI_ENV) $(HOST_DIR)/bin/python3 \
++		./setup.py build
++endef
++
++define UWSGI_INSTALL_TARGET_CMDS
++	cd $(@D); echo "TAGETENV: $(TARGET_MAKE_ENV)"; \
++	$(TARGET_MAKE_ENV) $(UWSGI_ENV) $(HOST_DIR)/bin/python3 \
++		./setup.py install $(PKG_PYTHON_SETUPTOOLS_INSTALL_TARGET_OPTS)
++endef
++
++$(eval $(generic-package))

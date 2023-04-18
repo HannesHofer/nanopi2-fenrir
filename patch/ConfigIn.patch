@@ -1,0 +1,21 @@
+diff --git a/package/Config.in b/package/Config.in
+index f7215f45dd..4a56480673 100644
+--- a/package/Config.in
++++ b/package/Config.in
+@@ -2202,6 +2202,8 @@ endif
+ 	source "package/fail2ban/Config.in"
+ 	source "package/fastd/Config.in"
+ 	source "package/fcgiwrap/Config.in"
++	source "package/fenrirCore/Config.in"
++	source "package/fenrirWeb/Config.in"
+ 	source "package/flannel/Config.in"
+ 	source "package/fmc/Config.in"
+ 	source "package/fping/Config.in"
+@@ -2408,6 +2410,7 @@ endif
+ 	source "package/vpnc/Config.in"
+ 	source "package/vsftpd/Config.in"
+ 	source "package/vtun/Config.in"
++	source "package/uwsgi/Config.in"
+ 	source "package/wavemon/Config.in"
+ 	source "package/wget/Config.in"
+ 	source "package/whois/Config.in"

@@ -1,0 +1,15 @@
+diff --git a/package/unbound/unbound.mk b/package/unbound/unbound.mk
+index 782ed2b049..c023f969e6 100644
+--- a/package/unbound/unbound.mk
++++ b/package/unbound/unbound.mk
+@@ -48,6 +48,10 @@ else
+ UNBOUND_CONF_OPTS += --disable-dnscrypt
+ endif
+ 
++define UNBOUND_USERS
++        unbound -1 unbound -1 * - - - unbound user
++endef
++
+ define UNBOUND_INSTALL_INIT_SYSV
+ 	$(INSTALL) -D -m 755 package/unbound/S70unbound \
+ 		$(TARGET_DIR)/etc/init.d/S70unbound

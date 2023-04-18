@@ -1,0 +1,30 @@
+diff --git a/package/fenrirCore/Config.in b/package/fenrirCore/Config.in
+new file mode 100644
+index 0000000000..4ad860e900
+--- /dev/null
++++ b/package/fenrirCore/Config.in
+@@ -0,0 +1,10 @@
++config BR2_PACKAGE_FENRIRCORE
++        bool "fenrirCore"
++        depends on BR2_PACKAGE_PYTHON3
++        select BR2_PACKAGE_PYTHON_REQUESTS
++        select BR2_PACKAGE_PYTHON_PYROUTE2
++        select BR2_PACKAGE_PYTHON_SCAPY
++        help
++		"Fenrir provides a user friendly way to route all traffic from configured trough a VPN tunnel."
++
++comment "FenrirCore needs python3 and pycryptodomex, scapy, pyroute2"
+diff --git a/package/fenrirCore/fenrirCore.mk b/package/fenrirCore/fenrirCore.mk
+new file mode 100644
+index 0000000000..b34fb4e1c1
+--- /dev/null
++++ b/package/fenrirCore/fenrirCore.mk
+@@ -0,0 +1,8 @@
++FENRIRCORE_VERSION = 0.7.0
++FENRIRCORE_SETUP_TYPE = setuptools
++FENRIRCORE_SOURCE = fenrircore-$(FENRIRCORE_VERSION).tar.gz
++FENRIRCORE_SITE = https://files.pythonhosted.org/packages/0d/bd/3cb407ef6dda870cf17490b67a37533287fde8b151ce8a3d2727ff879f99
++FENRIRCORE_LICENSE = GPL-2
++FENRIRCORE_LICENSE_FILES = LICENSE
++
++$(eval $(python-package))
