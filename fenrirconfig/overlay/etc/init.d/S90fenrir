@@ -1,0 +1,71 @@
+#!/bin/sh
+#
+# Starts Fenrir
+#
+
+# Allow a few customizations from a config file
+
+prepare_environment() {
+	/bin/mkdir -m 777 -p /var/log/nginx
+	/bin/mkdir -m 777 -p /run/fenrir
+	/bin/mkdir -m 777 -p /var/cache/fenrir
+	if [ -f /storage/fenrir.sqlite ]; then
+		cp /storage/fenrir.sqlite /var/cache/fenrir/
+	else
+		touch /var/cache/fenrir/fenrir.sqlite
+	fi
+	chmod 777 /var/cache/fenrir/fenrir.sqlite
+	/sbin/ip tuntap add mode tun tun0
+	if [ -f /etc/macvendors.sqlite ]; then
+    		cp /etc/macvendors.sqlite /var/cache/fenrir/macvendors.sqlite
+	else
+		python -m fenrircore --updatemacvendors
+	fi
+
+}
+
+prepare_uwsgi() {
+	echo "#!/bin/env python3" > /var/run/fenrirApp
+	echo "from fenrirWeb.main import app" >> /var/run/fenrirApp
+	echo "from fenrirWeb import static" >> /var/run/fenrirApp
+	echo "from fenrirWeb import views" >> /var/run/fenrirApp
+	chmod +x /var/run/fenrirApp
+	STATICPATH=$(python3 -c 'import fenrirWeb;print(fenrirWeb.__file__.replace("__init__.pyc","static"))')
+	cp -r ${STATICPATH} /run/
+
+}
+
+start() {
+	printf "Starting Fenrir: "
+	prepare_environment
+	prepare_uwsgi
+	python -m fenrircore --inputinterface eth0 --vpninterface tun0 > /var/log/fenrir.log &
+	/usr/bin/uwsgi --ini /etc/uwsgi/apps-enabled/fenrir --daemonize2 /dev/null --pidfile2 /run/fenrir/uwsgi.pid
+        echo "none" > /sys/class/leds/nanopi:blue:status/trigger
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
+}
+stop() {
+	printf "Stopping Fenrir: "
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
+}
+restart() {
+	stop
+	start
+}
+
+case "$1" in
+  start)
+  	start
+	;;
+  stop)
+  	stop
+	;;
+  restart|reload)
+  	restart
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?

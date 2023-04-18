@@ -1,0 +1,10 @@
+/dev/root       /           squashfs   rw,noauto       0       1
+/dev/mmcblk0p1  /storage    auto       defaults,user   0       0
+tmpfs           /dev/shm    tmpfs      size=5M,mode=0777       0       0
+tmpfs           /tmp        tmpfs      size=10M,mode=1777       0       0
+tmpfs           /run        tmpfs      size=10M,mode=0755,nosuid,nodev  0       0
+tmpfs           /var/cache  tmpfs      size=20M,mode=0755,nosuid,nodev  0       0
+sysfs           /sys        sysfs      defaults        0       0
+proc            /proc       proc       defaults        0       0
+devpts          /dev/pts    devpts     defaults,gid=5,mode=620,ptmxmode=0666   0       0
+tmpfs           /var/log    tmpfs      rw,size=100M,noexec,nodev,nosuid,mode=1700 0 0

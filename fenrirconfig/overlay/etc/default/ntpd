@@ -1,0 +1,2 @@
+NTPDATE=yes
+NTPSERVERS=pool.ntp.org

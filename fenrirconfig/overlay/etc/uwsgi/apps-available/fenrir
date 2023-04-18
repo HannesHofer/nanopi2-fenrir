@@ -1,0 +1,11 @@
+[uwsgi]
+socket = /run/fenrir/web.socket
+chdir = /run/fenrir/
+master = true
+plugins = python3
+file = /var/run/fenrirApp
+uid = www-data
+gid = www-data
+callable = app
+workers = 2
+disable-logging = true
